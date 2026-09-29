@@ -124,7 +124,6 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;
         }
 
-        /* EDIT PREVIEW CONTAINER (Interactive Box Customization) */
         #edit-container {
             width: 100%; max-width: 450px;
             aspect-ratio: 2 / 3;
@@ -138,9 +137,11 @@
         .edit-box {
             position: absolute;
             overflow: hidden;
-            cursor: pointer;
+            cursor: grab;
             border: 2px dashed transparent;
+            touch-action: none;
         }
+        .edit-box:active { cursor: grabbing; }
         .edit-box.active {
             border-color: var(--matcha-green);
             z-index: 5;
@@ -149,7 +150,6 @@
             width: 100%; height: 100%;
             object-fit: cover;
             transform-origin: center center;
-            touch-action: none;
         }
 
         #edit-frame-overlay {
@@ -157,7 +157,6 @@
             z-index: 10; pointer-events: none; object-fit: cover;
         }
 
-        /* FILTERS */
         .filter-portra { filter: sepia(15%) contrast(95%) saturate(120%) brightness(105%) hue-rotate(-2deg); }
         .filter-colorplus { filter: sepia(25%) contrast(110%) saturate(130%) brightness(100%) hue-rotate(-5deg); }
         .filter-olympus { filter: contrast(115%) saturate(110%) brightness(105%) hue-rotate(2deg); }
@@ -177,7 +176,7 @@
         <h2>Verify Frame</h2>
         <div class="frame-selection">
             <div class="frame-option">
-                <h3>Frame 1 (1200x1800)</h3>
+                <h3>Frame 1 </h3>
                 <img src="images/frame1.png" style="width: 100%; max-width: 200px; display: block; margin: 0 auto 10px; border: 1px solid #ccc;">
             </div>
         </div>
@@ -208,10 +207,10 @@
         
         <div style="text-align: center; margin-top: 20px;">
             <h2 style="margin:0; margin-bottom: 10px;">Takes Left: <span id="takes-left">10</span>/10</h2>
-            <p>Box <span id="box-progress">1</span> of 8 active</p>
+            <p>Row <span id="row-progress">1</span> of 4 active</p>
             <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
                 <button id="snap-btn" onclick="triggerSyncTimer()">Take Picture</button>
-                <button id="retake-btn" class="btn-red" onclick="triggerSyncRetake()" disabled>Retake Last Box</button>
+                <button id="retake-btn" class="btn-red" onclick="triggerSyncRetake()" disabled>Retake Last Row</button>
                 <button id="finish-btn" class="btn-white" onclick="triggerSyncFinish()">Finish Early</button>
             </div>
         </div>
@@ -219,10 +218,9 @@
 
     <div id="view-edit" class="view">
         <h2>Edit Pictures</h2>
-        <p style="font-size: 0.9rem; margin-top: 0;">Tap a box to select it, then pinch or use buttons to zoom/pan!</p>
+        <p style="font-size: 0.9rem; margin-top: 0;">Pinch-to-zoom on mobile, or drag/zoom images inside boxes seamlessly!</p>
         
         <div id="edit-container">
-            <!-- Interactive HTML Box Elements for Zoom/Pan -->
             <div class="edit-box active" id="edit-box-0" onclick="selectEditBox(0)"><img id="img-box-0" src=""></div>
             <div class="edit-box" id="edit-box-1" onclick="selectEditBox(1)"><img id="img-box-1" src=""></div>
             <div class="edit-box" id="edit-box-2" onclick="selectEditBox(2)"><img id="img-box-2" src=""></div>
@@ -239,11 +237,11 @@
             <button onclick="adjustSelectedZoom(0.1)">Zoom In +</button>
             <button onclick="adjustSelectedZoom(-0.1)">Zoom Out -</button>
 
-            <h3>Box Filter Only</h3>
-            <button onclick="applyBoxFilter('none')">Normal</button>
-            <button onclick="applyBoxFilter('filter-portra')">Portra 400</button>
-            <button onclick="applyBoxFilter('filter-colorplus')">Kodak Colorplus</button>
-            <button onclick="applyBoxFilter('filter-olympus')">Olympus</button>
+            <h3>Global Film Filters (All Boxes)</h3>
+            <button onclick="applyGlobalFilter('none')">Normal</button>
+            <button onclick="applyGlobalFilter('filter-portra')">Portra 400</button>
+            <button onclick="applyGlobalFilter('filter-colorplus')">Kodak Colorplus</button>
+            <button onclick="applyGlobalFilter('filter-olympus')">Olympus</button>
             
             <hr style="border-color: var(--text-dark); margin: 20px 0;">
             <button onclick="saveFinalCompositePhoto()" style="width: 100%; background: var(--matcha-green);">Save High-Res Photo (PNG)</button>
@@ -268,11 +266,10 @@
         let frozenSnapshots = []; 
         let takesRemaining = 10;
 
-        // Per-box transformation states for zoom & pan
         let boxTransforms = pixelBoxes.map(() => ({ scale: 1, x: 0, y: 0, filter: 'none' }));
         let activeBoxIndex = 0;
 
-        const canvas = document.createElement('canvas'); // Hidden canvas for final generation
+        const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
         function goToView(viewId) {
@@ -344,13 +341,16 @@
                 }
             });
 
-            let nextAvailableSlot = frozenSnapshots.length;
-            document.getElementById('box-progress').innerText = Math.min(nextAvailableSlot + 1, 8);
+            // Active row tracking (2 boxes per row: 0-1 = row 1, 2-3 = row 2, etc.)
+            let currentRow = Math.floor(frozenSnapshots.length / 2);
+            document.getElementById('row-progress').innerText = Math.min(currentRow + 1, 4);
             document.getElementById('takes-left').innerText = takesRemaining;
             document.getElementById('retake-btn').disabled = (frozenSnapshots.length === 0);
             
+            // Populate active row slots simultaneously for connected participants
+            let rowStart = currentRow * 2;
             activeStreams.forEach((streamData, index) => {
-                const targetSlot = nextAvailableSlot + index;
+                const targetSlot = rowStart + index;
                 if (targetSlot < 8) {
                     const slotEl = document.getElementById(`slot-${targetSlot}`);
                     slotEl.appendChild(streamData.videoEl);
@@ -367,8 +367,8 @@
 
         function triggerSyncRetake() {
             if(frozenSnapshots.length === 0) return;
-            dataConnections.forEach(conn => conn.send({ command: 'RETAKE_BOX' }));
-            executeRetake();
+            dataConnections.forEach(conn => conn.send({ command: 'RETAKE_ROW' }));
+            executeRetakeRow();
         }
 
         function triggerSyncFinish() {
@@ -382,12 +382,17 @@
 
         function handleDataSync(data) {
             if (data.command === 'START_TIMER') startCountdown();
-            else if (data.command === 'RETAKE_BOX') executeRetake();
+            else if (data.command === 'RETAKE_ROW') executeRetakeRow();
             else if (data.command === 'FINISH_SESSION') prepareEditScreen();
         }
 
-        function executeRetake() {
-            frozenSnapshots.pop();
+        function executeRetakeRow() {
+            // Pop out the entire last row (2 boxes at a time)
+            if (frozenSnapshots.length > 0) {
+                let remainder = frozenSnapshots.length % 2;
+                let popCount = remainder === 0 ? 2 : remainder;
+                for(let i=0; i<popCount; i++) frozenSnapshots.pop();
+            }
             updateLivePreview();
         }
 
@@ -407,23 +412,27 @@
                 else {
                     clearInterval(interval);
                     timerEl.innerText = "";
-                    captureSnapshot();
+                    captureRowSnapshot();
                 }
             }, 1000);
         }
 
-        function captureSnapshot() {
+        function captureRowSnapshot() {
             takesRemaining--;
-            activeStreams.forEach((streamData) => {
-                if(frozenSnapshots.length >= 8) return; 
+            let currentRow = Math.floor(frozenSnapshots.length / 2);
+            let rowStart = currentRow * 2;
+
+            activeStreams.forEach((streamData, index) => {
+                let targetSlot = rowStart + index;
+                if(targetSlot >= 8) return; 
 
                 const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = 534; tempCanvas.height = 336;
+                tempCanvas.width = 530; tempCanvas.height = 332;
                 const tCtx = tempCanvas.getContext('2d');
                 
                 const vid = streamData.videoEl;
                 const vRatio = vid.videoWidth / vid.videoHeight;
-                const cRatio = 534 / 336;
+                const cRatio = 530 / 332;
                 let sx = 0, sy = 0, sWidth = vid.videoWidth, sHeight = vid.videoHeight;
 
                 if (vRatio > cRatio) {
@@ -434,11 +443,16 @@
                     sy = (vid.videoHeight - sHeight) / 2;
                 }
 
-                tCtx.translate(534, 0);
+                tCtx.translate(530, 0);
                 tCtx.scale(-1, 1);
-                tCtx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, 534, 336);
-                frozenSnapshots.push(tempCanvas.toDataURL('image/png'));
+                tCtx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, 530, 332);
+                
+                // Ensure correct index alignment
+                frozenSnapshots[targetSlot] = tempCanvas.toDataURL('image/png');
             });
+
+            // Clean up empty trailing undefined slots if single player
+            frozenSnapshots = frozenSnapshots.filter(Boolean);
 
             if (frozenSnapshots.length >= 8 || takesRemaining <= 0) {
                 prepareEditScreen(); 
@@ -450,13 +464,11 @@
             }
         }
 
-        // --- INTERACTIVE PER-BOX EDITING SETUP ---
         function prepareEditScreen() {
             pixelBoxes.forEach((b, i) => {
                 const boxEl = document.getElementById(`edit-box-${i}`);
                 const imgEl = document.getElementById(`img-box-${i}`);
                 
-                // Position matching the 1200x1800 scale relative to UI preview container
                 boxEl.style.left = (b.x / 1200 * 100) + '%';
                 boxEl.style.top = (b.y / 1800 * 100) + '%';
                 boxEl.style.width = (b.w / 1200 * 100) + '%';
@@ -466,13 +478,13 @@
                     imgEl.src = frozenSnapshots[i];
                     boxEl.style.display = 'block';
                 } else {
-                    boxEl.style.display = 'none'; // Hide empty uncaptured boxes
+                    boxEl.style.display = 'none';
                 }
             });
 
             selectEditBox(0);
             goToView('view-edit');
-            setupTouchAndMousePanZoom();
+            setupBoundedDragAndPinchZoom();
         }
 
         function selectEditBox(index) {
@@ -488,15 +500,30 @@
             t.scale += amount;
             if (t.scale < 1) t.scale = 1;
             if (t.scale > 3) t.scale = 3;
+            clampTranslation(activeBoxIndex);
             updateBoxTransform(activeBoxIndex);
         }
 
-        function applyBoxFilter(filterClass) {
-            let t = boxTransforms[activeBoxIndex];
-            t.filter = filterClass;
-            const imgEl = document.getElementById(`img-box-${activeBoxIndex}`);
-            imgEl.className = '';
-            if (filterClass !== 'none') imgEl.classList.add(filterClass);
+        // Apply filter automatically to ALL boxes at once
+        function applyGlobalFilter(filterClass) {
+            boxTransforms.forEach((t, i) => {
+                t.filter = filterClass;
+                const imgEl = document.getElementById(`img-box-${i}`);
+                imgEl.className = '';
+                if (filterClass !== 'none') imgEl.classList.add(filterClass);
+            });
+        }
+
+        function clampTranslation(index) {
+            let t = boxTransforms[index];
+            let b = pixelBoxes[index];
+            let maxOffsetX = (b.w * (t.scale - 1)) / 2;
+            let maxOffsetY = (b.h * (t.scale - 1)) / 2;
+
+            if (t.x > maxOffsetX) t.x = maxOffsetX;
+            if (t.x < -maxOffsetX) t.x = -maxOffsetX;
+            if (t.y > maxOffsetY) t.y = maxOffsetY;
+            if (t.y < -maxOffsetY) t.y = -maxOffsetY;
         }
 
         function updateBoxTransform(index) {
@@ -505,12 +532,13 @@
             imgEl.style.transform = `scale(${t.scale}) translate(${t.x}px, ${t.y}px)`;
         }
 
-        // Mouse & Touch Drag / Pinch Pan-Zoom support
-        function setupTouchAndMousePanZoom() {
+        // Robust Bounded Dragging & Mobile Pinch-to-Zoom Support
+        function setupBoundedDragAndPinchZoom() {
             pixelBoxes.forEach((_, i) => {
                 const boxEl = document.getElementById(`edit-box-${i}`);
                 let isDragging = false;
                 let startX, startY;
+                let initialPinchDist = null;
 
                 boxEl.onpointerdown = (e) => {
                     selectEditBox(i);
@@ -524,6 +552,7 @@
                     if (!isDragging) return;
                     boxTransforms[i].x = e.clientX - startX;
                     boxTransforms[i].y = e.clientY - startY;
+                    clampTranslation(i);
                     updateBoxTransform(i);
                 };
 
@@ -531,17 +560,41 @@
                     isDragging = false;
                     boxEl.releasePointerCapture(e.pointerId);
                 };
+
+                // Native Mobile Pinch Zoom handlers
+                boxEl.ontouchstart = (e) => {
+                    if (e.touches.length === 2) {
+                        initialPinchDist = Math.hypot(
+                            e.touches[0].clientX - e.touches[1].clientX,
+                            e.touches[0].clientY - e.touches[1].clientY
+                        );
+                    }
+                };
+
+                boxEl.ontouchmove = (e) => {
+                    if (e.touches.length === 2 && initialPinchDist !== null) {
+                        let currentDist = Math.hypot(
+                            e.touches[0].clientX - e.touches[1].clientX,
+                            e.touches[0].clientY - e.touches[1].clientY
+                        );
+                        let factor = currentDist / initialPinchDist;
+                        boxTransforms[i].scale = Math.min(Math.max(boxTransforms[i].scale * factor, 1), 3);
+                        initialPinchDist = currentDist;
+                        clampTranslation(i);
+                        updateBoxTransform(i);
+                    }
+                };
+
+                boxEl.ontouchend = () => { initialPinchDist = null; };
             });
         }
 
-        // --- FINAL COMPOSITE HIGH-RES SAVE ---
         async function saveFinalCompositePhoto() {
             canvas.width = 1200; 
             canvas.height = 1800;
             ctx.fillStyle = '#111111';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw each box taking into account custom user zoom, pan, and box-only filters
             const drawPromises = frozenSnapshots.map((src, i) => {
                 return new Promise(resolve => {
                     const img = new Image();
@@ -549,12 +602,10 @@
                         ctx.save();
                         const b = pixelBoxes[i];
                         
-                        // Clip context to exact box dimensions so panning doesn't spill over frame borders
                         ctx.beginPath();
-                        ctx.rect(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
+                        ctx.rect(b.x, b.y, b.w, b.h);
                         ctx.clip();
 
-                        // Apply box-only filter directly to canvas drawing operation
                         let t = boxTransforms[i];
                         let filterStr = 'none';
                         if (t.filter === 'filter-portra') filterStr = 'sepia(15%) contrast(95%) saturate(120%) brightness(105%) hue-rotate(-2deg)';
@@ -562,14 +613,12 @@
                         if (t.filter === 'filter-olympus') filterStr = 'contrast(115%) saturate(110%) brightness(105%) hue-rotate(2deg)';
                         ctx.filter = filterStr;
 
-                        // Calculate scale/pan scaling relative to 1200x1800 master resolution
                         const scaleFactor = 1200 / document.getElementById('edit-container').offsetWidth;
                         const drawX = b.x + (t.x * scaleFactor);
                         const drawY = b.y + (t.y * scaleFactor);
                         const drawW = b.w * t.scale;
                         const drawH = b.h * t.scale;
                         
-                        // Center offset adjustments for zoom scaling
                         const offsetX = (drawW - b.w) / 2;
                         const offsetY = (drawH - b.h) / 2;
 
@@ -583,14 +632,13 @@
 
             await Promise.all(drawPromises);
 
-            // Draw clean Frame PNG on top (unaffected by filters or zoom)
             const frameImg = new Image();
             frameImg.onload = () => {
-                ctx.filter = 'none'; // Ensure frame is pristine
+                ctx.filter = 'none';
                 ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
                 
                 const link = document.createElement('a');
-                link.download = `CTP-photobox-${Date.now()}.png`;
+                link.download = `CTP box-photobox-${Date.now()}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             };
