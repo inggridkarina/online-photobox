@@ -63,6 +63,7 @@
         
         button:disabled { background-color: #ccc; box-shadow: none; transform: none; cursor: not-allowed; }
         .btn-white { background-color: var(--pure-white); }
+        .btn-red { background-color: #ff4a4a; color: white; }
 
         input {
             border: 3px solid var(--text-dark);
@@ -78,44 +79,42 @@
             border: 3px solid var(--text-dark); background: var(--pure-white); padding: 15px; text-align: center;
         }
 
-        /* LIVE VIEWFINDER FIX: Absolute Positioning constraints */
+        /* LIVE VIEWFINDER */
         #live-booth-container {
             width: 100%;
             max-width: 500px;
-            aspect-ratio: 2 / 3; /* Forces exactly a 1200x1800 ratio representation */
+            aspect-ratio: 2 / 3; 
             margin: 0 auto;
             position: relative;
-            background: #ffffff;
+            background: #111;
             border: 5px solid var(--text-dark);
             overflow: hidden;
         }
 
         .box-slot {
             position: absolute;
-            /* Exactly 530x332 proportionately scaled */
-            width: 44.166%; 
-            height: 18.444%; 
+            width: 44.5%; 
+            height: 18.666%; 
             background: #222;
-            overflow: hidden; /* This completely prevents the video from bleeding outside the box */
+            overflow: hidden; 
         }
 
-        /* 
-           Exact Box Coordinates mapped to Percentages 
-           (prevents overflow regardless of screen size)
-        */
-        #slot-0 { left: 4.416%; top: 3.555%; }
-        #slot-1 { left: 51.333%; top: 3.555%; }
-        #slot-2 { left: 4.416%; top: 23.333%; }
-        #slot-3 { left: 51.333%; top: 23.333%; }
-        #slot-4 { left: 4.416%; top: 43.111%; }
-        #slot-5 { left: 51.333%; top: 43.111%; }
+        /* 8 Boxes Coordinates */
+        #slot-0 { left: calc(4.416% - 2px); top: calc(3.555% - 2px); }
+        #slot-1 { left: calc(51.333% - 2px); top: calc(3.555% - 2px); }
+        #slot-2 { left: calc(4.416% - 2px); top: calc(23.333% - 2px); }
+        #slot-3 { left: calc(51.333% - 2px); top: calc(23.333% - 2px); }
+        #slot-4 { left: calc(4.416% - 2px); top: calc(43.111% - 2px); }
+        #slot-5 { left: calc(51.333% - 2px); top: calc(43.111% - 2px); }
+        #slot-6 { left: calc(4.416% - 2px); top: calc(62.888% - 2px); }
+        #slot-7 { left: calc(51.333% - 2px); top: calc(62.888% - 2px); }
 
         .box-slot video, .box-slot img {
             width: 100%; height: 100%;
             object-fit: cover;
         }
         .box-slot video {
-            transform: scaleX(-1); /* Mirror real-time camera */
+            transform: scaleX(-1); 
         }
 
         #live-frame-overlay {
@@ -131,12 +130,6 @@
             text-shadow: 4px 4px 0 var(--text-dark);
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;
         }
-
-        #gallery-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 20px;
-        }
-        .gallery-img { width: 100%; border: 3px solid var(--text-dark); cursor: pointer; transition: transform 0.2s; }
-        .gallery-img:hover { transform: scale(1.05); }
 
         #photo-canvas {
             width: 100%; max-width: 500px; border: 5px solid var(--text-dark); display: block; margin: 20px auto;
@@ -178,31 +171,28 @@
         </div>
         
         <div id="live-booth-container">
-            <!-- 6 Absolute Slots -->
+            <!-- 8 Absolute Slots -->
             <div class="box-slot" id="slot-0"></div>
             <div class="box-slot" id="slot-1"></div>
             <div class="box-slot" id="slot-2"></div>
             <div class="box-slot" id="slot-3"></div>
             <div class="box-slot" id="slot-4"></div>
             <div class="box-slot" id="slot-5"></div>
+            <div class="box-slot" id="slot-6"></div>
+            <div class="box-slot" id="slot-7"></div>
             <img id="live-frame-overlay" src="images/frame1.png" alt="frame">
             <div id="timer" class="timer-display"></div>
         </div>
         
         <div style="text-align: center; margin-top: 20px;">
-            <h2 style="margin:0; margin-bottom: 10px;">Finished Frames: <span id="frame-count">0</span>/10</h2>
-            <p>Box <span id="box-progress">1</span> of 6 active</p>
+            <h2 style="margin:0; margin-bottom: 10px;">Takes Left: <span id="takes-left">10</span>/10</h2>
+            <p>Box <span id="box-progress">1</span> of 8 active</p>
             <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
                 <button id="snap-btn" onclick="triggerSyncTimer()">Take Picture</button>
+                <button id="retake-btn" class="btn-red" onclick="triggerSyncRetake()" disabled>Retake Last Box</button>
                 <button id="finish-btn" class="btn-white" onclick="triggerSyncFinish()">Finish Early</button>
             </div>
         </div>
-    </div>
-
-    <div id="view-selection" class="view">
-        <h2>Pick the best one</h2>
-        <p>Click your favorite completed frame to edit and save!</p>
-        <div id="gallery-grid"></div>
     </div>
 
     <div id="view-edit" class="view">
@@ -210,6 +200,10 @@
         <canvas id="photo-canvas"></canvas>
         
         <div class="control-panel">
+            <h3>Adjust Zoom</h3>
+            <button onclick="adjustZoom(0.1)">Zoom In +</button>
+            <button onclick="adjustZoom(-0.1)">Zoom Out -</button>
+
             <h3>Film Filters</h3>
             <button onclick="applyFilter('none')">Normal</button>
             <button onclick="applyFilter('filter-portra')">Portra 400</button>
@@ -222,22 +216,23 @@
     </div>
 
     <script>
-        // Data and State
+        // Data and State (8 boxes)
         const pixelBoxes = [
             { x: 53, y: 64 }, { x: 616, y: 64 },
             { x: 53, y: 420 }, { x: 616, y: 420 },
-            { x: 53, y: 776 }, { x: 616, y: 776 }
+            { x: 53, y: 776 }, { x: 616, y: 776 },
+            { x: 53, y: 1132 }, { x: 616, y: 1132 }
         ];
 
         let peer;
         let dataConnections = [];
-        
-        // Active streams array (holds {id, videoEl, isLocal})
         let activeStreams = []; 
+        let frozenSnapshots = []; 
         
-        let frozenSnapshots = []; // Holds the individual 530x332 taken pictures
-        let completedFrames = []; // Holds the fully compiled 1200x1800 collages
-        const MAX_FRAMES = 10;
+        // Limits and Modifiers
+        let takesRemaining = 10;
+        let zoomLevel = 1;
+        let finalImageData = null;
         let currentFilter = 'none';
 
         const canvas = document.getElementById('photo-canvas');
@@ -248,7 +243,6 @@
             document.getElementById(viewId).classList.add('active');
         }
 
-        // --- Connection & Stream Setup ---
         async function setupConnection(isHost) {
             goToView('view-booth');
             try {
@@ -298,7 +292,7 @@
                 if(!activeStreams.find(s => s.id === remoteStream.id)) {
                     const remoteVid = document.createElement('video');
                     remoteVid.srcObject = remoteStream;
-                    remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; // Enable friend's mic!
+                    remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; 
                     
                     activeStreams.push({ id: remoteStream.id, videoEl: remoteVid, isLocal: false });
                     updateLivePreview();
@@ -306,62 +300,75 @@
             });
         }
 
-        // --- Dynamic Live Preview Mapping ---
         function updateLivePreview() {
-            // 1. Clear all 6 slots
-            for(let i=0; i<6; i++) {
+            for(let i=0; i<8; i++) {
                 document.getElementById(`slot-${i}`).innerHTML = '';
             }
 
-            // 2. Put frozen snapshots in their completed slots
             frozenSnapshots.forEach((dataUrl, i) => {
-                if (i < 6) {
+                if (i < 8) {
                     const img = document.createElement('img');
                     img.src = dataUrl;
                     document.getElementById(`slot-${i}`).appendChild(img);
                 }
             });
 
-            // 3. Put live camera feeds in the NEXT available slots
             let nextAvailableSlot = frozenSnapshots.length;
-            document.getElementById('box-progress').innerText = Math.min(nextAvailableSlot + 1, 6);
-
+            document.getElementById('box-progress').innerText = Math.min(nextAvailableSlot + 1, 8);
+            
+            // Manage button states
+            document.getElementById('takes-left').innerText = takesRemaining;
+            document.getElementById('retake-btn').disabled = (frozenSnapshots.length === 0);
+            
             activeStreams.forEach((streamData, index) => {
                 const targetSlot = nextAvailableSlot + index;
-                if (targetSlot < 6) {
+                if (targetSlot < 8) {
                     const slotEl = document.getElementById(`slot-${targetSlot}`);
                     slotEl.appendChild(streamData.videoEl);
-                    streamData.videoEl.play(); // Ensure it keeps playing after moving DOM elements
+                    streamData.videoEl.play(); 
                 }
             });
         }
 
-        // --- Timer & Capture Sync ---
         function triggerSyncTimer() {
-            if(completedFrames.length >= MAX_FRAMES) return;
+            if(takesRemaining <= 0) return;
             dataConnections.forEach(conn => conn.send({ command: 'START_TIMER' }));
             startCountdown();
         }
 
+        function triggerSyncRetake() {
+            if(frozenSnapshots.length === 0) return;
+            dataConnections.forEach(conn => conn.send({ command: 'RETAKE_BOX' }));
+            executeRetake();
+        }
+
         function triggerSyncFinish() {
-            if(completedFrames.length === 0) {
-                alert("Complete at least 1 full frame before finishing!");
+            if(frozenSnapshots.length === 0) {
+                alert("Take at least 1 picture before finishing!");
                 return;
             }
             dataConnections.forEach(conn => conn.send({ command: 'FINISH_SESSION' }));
-            buildGallery();
+            compileFullFrame();
         }
 
         function handleDataSync(data) {
             if (data.command === 'START_TIMER') startCountdown();
-            else if (data.command === 'FINISH_SESSION') buildGallery();
+            else if (data.command === 'RETAKE_BOX') executeRetake();
+            else if (data.command === 'FINISH_SESSION') compileFullFrame();
+        }
+
+        function executeRetake() {
+            frozenSnapshots.pop(); // Remove the last taken box
+            updateLivePreview();
         }
 
         function startCountdown() {
-            if(completedFrames.length >= MAX_FRAMES) return;
+            if(takesRemaining <= 0) return;
             
             document.getElementById('snap-btn').disabled = true;
+            document.getElementById('retake-btn').disabled = true;
             document.getElementById('finish-btn').disabled = true;
+            
             let count = 10;
             const timerEl = document.getElementById('timer');
             timerEl.innerText = count;
@@ -378,17 +385,18 @@
         }
 
         function captureSnapshot() {
-            // Take a picture for EVERY connected camera and put them in sequence
+            takesRemaining--; // Deduct 1 take
+            
             activeStreams.forEach((streamData) => {
-                if(frozenSnapshots.length >= 6) return; // Grid is full
+                if(frozenSnapshots.length >= 8) return; 
 
                 const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = 530; tempCanvas.height = 332;
+                tempCanvas.width = 534; tempCanvas.height = 336;
                 const tCtx = tempCanvas.getContext('2d');
                 
                 const vid = streamData.videoEl;
                 const vRatio = vid.videoWidth / vid.videoHeight;
-                const cRatio = 530 / 332;
+                const cRatio = 534 / 336;
                 let sx = 0, sy = 0, sWidth = vid.videoWidth, sHeight = vid.videoHeight;
 
                 if (vRatio > cRatio) {
@@ -399,33 +407,33 @@
                     sy = (vid.videoHeight - sHeight) / 2;
                 }
 
-                tCtx.translate(530, 0);
+                tCtx.translate(534, 0);
                 tCtx.scale(-1, 1);
-                tCtx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, 530, 332);
+                tCtx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, 534, 336);
                 
                 frozenSnapshots.push(tempCanvas.toDataURL('image/png'));
             });
 
-            // If we hit 6 snapshots, compile the full frame
-            if (frozenSnapshots.length >= 6) {
+            if (frozenSnapshots.length >= 8 || takesRemaining <= 0) {
                 compileFullFrame(); 
             } else {
                 updateLivePreview();
                 document.getElementById('snap-btn').disabled = false;
+                document.getElementById('retake-btn').disabled = false;
                 document.getElementById('finish-btn').disabled = false;
             }
         }
 
         async function compileFullFrame() {
             canvas.width = 1200; canvas.height = 1800;
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#111111'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw all 6 frozen snapshots into their exact pixel coordinates
             const drawPromises = frozenSnapshots.map((src, i) => {
                 return new Promise(resolve => {
                     const img = new Image();
                     img.onload = () => {
-                        ctx.drawImage(img, pixelBoxes[i].x, pixelBoxes[i].y, 530, 332);
+                        ctx.drawImage(img, pixelBoxes[i].x - 2, pixelBoxes[i].y - 2, 534, 336);
                         resolve();
                     };
                     img.src = src;
@@ -434,51 +442,43 @@
 
             await Promise.all(drawPromises);
 
-            // Draw final Stencil Frame overlay
             const frameImg = new Image();
             frameImg.onload = () => {
                 ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
                 
-                // Save completed frame
-                completedFrames.push(canvas.toDataURL('image/png'));
-                document.getElementById('frame-count').innerText = completedFrames.length;
+                // Save RAW image data for zooming
+                finalImageData = canvas.toDataURL('image/png');
+                drawToCanvasWithModifiers();
                 
-                frozenSnapshots = []; // Reset for the next round!
-                
-                if (completedFrames.length >= MAX_FRAMES) {
-                    buildGallery(); // Auto finish at 10 frames
-                } else {
-                    updateLivePreview();
-                    document.getElementById('snap-btn').disabled = false;
-                    document.getElementById('finish-btn').disabled = false;
-                }
+                // Go Straight to Edit & Save
+                goToView('view-edit');
             };
             frameImg.src = 'images/frame1.png';
         }
 
-        // --- Gallery & Editing ---
-        function buildGallery() {
-            goToView('view-selection');
-            const grid = document.getElementById('gallery-grid');
-            grid.innerHTML = ''; 
-            
-            completedFrames.forEach((photoUrl) => {
-                const img = document.createElement('img');
-                img.src = photoUrl;
-                img.className = 'gallery-img';
-                img.onclick = () => selectFinalPhoto(photoUrl);
-                grid.appendChild(img);
-            });
-        }
-
-        function selectFinalPhoto(url) {
+        // --- ZOOM & FILTER LOGIC ---
+        function drawToCanvasWithModifiers() {
+            if(!finalImageData) return;
             const img = new Image();
             img.onload = () => {
-                canvas.width = 1200; canvas.height = 1800;
-                ctx.drawImage(img, 0, 0);
-                goToView('view-edit');
+                ctx.clearRect(0,0, canvas.width, canvas.height);
+                
+                // Mathematical center zooming
+                const sw = canvas.width / zoomLevel;
+                const sh = canvas.height / zoomLevel;
+                const sx = (canvas.width - sw) / 2;
+                const sy = (canvas.height - sh) / 2;
+                
+                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
             };
-            img.src = url;
+            img.src = finalImageData;
+        }
+
+        function adjustZoom(amount) {
+            zoomLevel += amount;
+            if(zoomLevel < 1) zoomLevel = 1; 
+            if(zoomLevel > 3) zoomLevel = 3;
+            drawToCanvasWithModifiers();
         }
 
         function applyFilter(filterClass) {
