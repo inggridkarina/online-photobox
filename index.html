@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CutiePieBox Photobox</title>
-    <!-- PeerJS untuk koneksi P2P gratis -->
+    <!-- PeerJS untuk koneksi P2P real-time -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Syne:wght@600;800&display=swap" rel="stylesheet">
     
@@ -97,7 +97,7 @@
             overflow: hidden; 
         }
 
-        /* Teknik Bleed (+4px) untuk menutup celah putih secara presisi */
+        /* Bleed akurat (+4px ukuran, -2px posisi agar masuk di balik frame PNG) */
         #slot-0 { left: calc(4.416% - 2px); top: calc(3.555% - 2px); width: calc(44.166% + 4px); height: calc(18.444% + 4px); }
         #slot-1 { left: calc(51.333% - 2px); top: calc(3.555% - 2px); width: calc(44.166% + 4px); height: calc(18.444% + 4px); }
         #slot-2 { left: calc(4.416% - 2px); top: calc(23.333% - 2px); width: calc(44.166% + 4px); height: calc(18.444% + 4px); }
@@ -295,13 +295,11 @@
                     }
                 });
 
-                // Menerima panggilan video & audio dari teman
                 peer.on('call', call => {
                     call.answer(localStream);
                     handleIncomingStream(call);
                 });
 
-                // Menerima koneksi data sinkronisasi (Timer, Retake, Finish)
                 peer.on('connection', conn => {
                     dataConnections.push(conn);
                     conn.on('data', handleDataSync);
@@ -311,11 +309,9 @@
         }
 
         function joinRoom(hostCode) {
-            // Mengirim video & audio ke host
             const call = peer.call(hostCode, localStream);
             handleIncomingStream(call);
             
-            // Membuka jalur data sinkronisasi ke host
             const conn = peer.connect(hostCode);
             conn.on('open', () => {
                 dataConnections.push(conn);
@@ -328,7 +324,7 @@
                 if(!activeStreams.find(s => s.id === remoteStream.id)) {
                     const remoteVid = document.createElement('video');
                     remoteVid.srcObject = remoteStream;
-                    remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; // Suara teman aktif
+                    remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; 
                     activeStreams.push({ id: remoteStream.id, videoEl: remoteVid, isLocal: false });
                     updateLivePreview();
                 }
@@ -428,6 +424,7 @@
                 if(targetSlot >= 8) return; 
 
                 const tempCanvas = document.createElement('canvas');
+                // Tangkap dengan ukuran bleed yang persis sama dengan live CSS (+4px)
                 tempCanvas.width = 534; tempCanvas.height = 336;
                 const tCtx = tempCanvas.getContext('2d');
                 
@@ -468,6 +465,7 @@
                 const boxEl = document.getElementById(`edit-box-${i}`);
                 const imgEl = document.getElementById(`img-box-${i}`);
                 
+                // Sinkronisasi posisi edit container preview
                 boxEl.style.left = (b.x / 1200 * 100) + '%';
                 boxEl.style.top = (b.y / 1800 * 100) + '%';
                 boxEl.style.width = (b.w / 1200 * 100) + '%';
@@ -597,6 +595,7 @@
                         ctx.save();
                         const b = pixelBoxes[i];
                         
+                        // Render clip persis dengan bleed (-2px dan +4px) agar sama persis dengan preview video
                         ctx.beginPath();
                         ctx.rect(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
                         ctx.clip();
