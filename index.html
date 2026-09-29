@@ -82,7 +82,7 @@
         #live-booth-container {
             width: 100%;
             max-width: 500px;
-            aspect-ratio: 2 / 3; 
+            aspect-ratio: 1200 / 1800; 
             margin: 0 auto;
             position: relative;
             background: #111;
@@ -92,20 +92,18 @@
 
         .box-slot {
             position: absolute;
-            width: 44.5%; 
-            height: 18.666%; 
             background: #222;
             overflow: hidden; 
         }
 
-        #slot-0 { left: calc(4.416% - 2px); top: calc(3.555% - 2px); }
-        #slot-1 { left: calc(51.333% - 2px); top: calc(3.555% - 2px); }
-        #slot-2 { left: calc(4.416% - 2px); top: calc(23.333% - 2px); }
-        #slot-3 { left: calc(51.333% - 2px); top: calc(23.333% - 2px); }
-        #slot-4 { left: calc(4.416% - 2px); top: calc(43.111% - 2px); }
-        #slot-5 { left: calc(51.333% - 2px); top: calc(43.111% - 2px); }
-        #slot-6 { left: calc(4.416% - 2px); top: calc(62.888% - 2px); }
-        #slot-7 { left: calc(51.333% - 2px); top: calc(62.888% - 2px); }
+        #slot-0 { left: 4.416%; top: 3.555%; width: 44.166%; height: 18.444%; }
+        #slot-1 { left: 51.333%; top: 3.555%; width: 44.166%; height: 18.444%; }
+        #slot-2 { left: 4.416%; top: 23.333%; width: 44.166%; height: 18.444%; }
+        #slot-3 { left: 51.333%; top: 23.333%; width: 44.166%; height: 18.444%; }
+        #slot-4 { left: 4.416%; top: 43.111%; width: 44.166%; height: 18.444%; }
+        #slot-5 { left: 51.333%; top: 43.111%; width: 44.166%; height: 18.444%; }
+        #slot-6 { left: 4.416%; top: 62.888%; width: 44.166%; height: 18.444%; }
+        #slot-7 { left: 51.333%; top: 62.888%; width: 44.166%; height: 18.444%; }
 
         .box-slot video, .box-slot img {
             width: 100%; height: 100%;
@@ -126,7 +124,7 @@
 
         #edit-container {
             width: 100%; max-width: 450px;
-            aspect-ratio: 2 / 3;
+            aspect-ratio: 1200 / 1800;
             margin: 0 auto;
             position: relative;
             border: 5px solid var(--text-dark);
@@ -176,7 +174,7 @@
         <h2>Verify Frame</h2>
         <div class="frame-selection">
             <div class="frame-option">
-                <h3>Frame 1 </h3>
+                <h3>Frame 1 (1200x1800)</h3>
                 <img src="images/frame1.png" style="width: 100%; max-width: 200px; display: block; margin: 0 auto 10px; border: 1px solid #ccc;">
             </div>
         </div>
@@ -265,6 +263,7 @@
         let activeStreams = []; 
         let frozenSnapshots = []; 
         let takesRemaining = 10;
+        let localStreamObj = null; // Menyimpan objek stream lokal untuk kontrol hardware
 
         let boxTransforms = pixelBoxes.map(() => ({ scale: 1, x: 0, y: 0, filter: 'none' }));
         let activeBoxIndex = 0;
@@ -280,12 +279,12 @@
         async function setupConnection(isHost) {
             goToView('view-booth');
             try {
-                const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localStreamObj = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const localVid = document.createElement('video');
-                localVid.srcObject = localStream;
+                localVid.srcObject = localStreamObj;
                 localVid.autoplay = true; localVid.playsInline = true; localVid.muted = true;
                 
-                activeStreams.push({ id: 'local', videoEl: localVid, isLocal: true });
+                activeStreams.push({ id: 'local', videoEl: localVid, isLocal: true, stream: localStreamObj });
                 updateLivePreview();
                 
                 peer = new Peer(); 
@@ -293,12 +292,12 @@
                     document.getElementById('my-code').innerText = id;
                     if (!isHost) {
                         const hostCode = document.getElementById('join-code').value;
-                        if(hostCode) joinRoom(hostCode, localStream);
+                        if(hostCode) joinRoom(hostCode, localStreamObj);
                     }
                 });
 
                 peer.on('call', call => {
-                    call.answer(localStream);
+                    call.answer(localStreamObj);
                     handleIncomingStream(call);
                 });
 
@@ -306,7 +305,37 @@
                     dataConnections.push(conn);
                     conn.on('data', handleDataSync);
                 });
+
+                // --- FITUR AUTO-KILL KAMERA/MIC SAAT APLIKASI DITUTUP / MINIMIZE (MOBILE FRIENDLY) ---
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') {
+                        stopAllTracks();
+                    } else if (document.visibilityState === 'visible' && localStreamObj) {
+                        // Nyalakan kembali track jika kembali ke tab/aplikasi
+                        localStreamObj.getTracks().forEach(track => {
+                            if (track.readyState === 'ended') {
+                                navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(newStream => {
+                                    localStreamObj = newStream;
+                                    localVid.srcObject = newStream;
+                                });
+                            } else {
+                                track.enabled = true;
+                            }
+                        });
+                    }
+                });
+
+                window.addEventListener('pagehide', () => {
+                    stopAllTracks();
+                });
+
             } catch (err) { alert("Camera and mic access is required!"); }
+        }
+
+        function stopAllTracks() {
+            if (localStreamObj) {
+                localStreamObj.getTracks().forEach(track => track.stop());
+            }
         }
 
         function joinRoom(hostCode, localStream) {
@@ -325,7 +354,7 @@
                     const remoteVid = document.createElement('video');
                     remoteVid.srcObject = remoteStream;
                     remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; 
-                    activeStreams.push({ id: remoteStream.id, videoEl: remoteVid, isLocal: false });
+                    activeStreams.push({ id: remoteStream.id, videoEl: remoteVid, isLocal: false, stream: remoteStream });
                     updateLivePreview();
                 }
             });
@@ -341,20 +370,19 @@
                 }
             });
 
-            // Active row tracking (2 boxes per row: 0-1 = row 1, 2-3 = row 2, etc.)
             let currentRow = Math.floor(frozenSnapshots.length / 2);
             document.getElementById('row-progress').innerText = Math.min(currentRow + 1, 4);
             document.getElementById('takes-left').innerText = takesRemaining;
             document.getElementById('retake-btn').disabled = (frozenSnapshots.length === 0);
             
-            // Populate active row slots simultaneously for connected participants
             let rowStart = currentRow * 2;
             activeStreams.forEach((streamData, index) => {
                 const targetSlot = rowStart + index;
                 if (targetSlot < 8) {
                     const slotEl = document.getElementById(`slot-${targetSlot}`);
                     slotEl.appendChild(streamData.videoEl);
-                    streamData.videoEl.play(); 
+                    // Memastikan pemutaran video dipaksa berjalan untuk mencegah freeze di perangkat iOS/iPhone
+                    streamData.videoEl.play().catch(e => console.log("Auto-play prevented:", e));
                 }
             });
         }
@@ -387,7 +415,6 @@
         }
 
         function executeRetakeRow() {
-            // Pop out the entire last row (2 boxes at a time)
             if (frozenSnapshots.length > 0) {
                 let remainder = frozenSnapshots.length % 2;
                 let popCount = remainder === 0 ? 2 : remainder;
@@ -447,11 +474,9 @@
                 tCtx.scale(-1, 1);
                 tCtx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, 530, 332);
                 
-                // Ensure correct index alignment
                 frozenSnapshots[targetSlot] = tempCanvas.toDataURL('image/png');
             });
 
-            // Clean up empty trailing undefined slots if single player
             frozenSnapshots = frozenSnapshots.filter(Boolean);
 
             if (frozenSnapshots.length >= 8 || takesRemaining <= 0) {
@@ -504,7 +529,6 @@
             updateBoxTransform(activeBoxIndex);
         }
 
-        // Apply filter automatically to ALL boxes at once
         function applyGlobalFilter(filterClass) {
             boxTransforms.forEach((t, i) => {
                 t.filter = filterClass;
@@ -532,7 +556,6 @@
             imgEl.style.transform = `scale(${t.scale}) translate(${t.x}px, ${t.y}px)`;
         }
 
-        // Robust Bounded Dragging & Mobile Pinch-to-Zoom Support
         function setupBoundedDragAndPinchZoom() {
             pixelBoxes.forEach((_, i) => {
                 const boxEl = document.getElementById(`edit-box-${i}`);
@@ -561,7 +584,6 @@
                     boxEl.releasePointerCapture(e.pointerId);
                 };
 
-                // Native Mobile Pinch Zoom handlers
                 boxEl.ontouchstart = (e) => {
                     if (e.touches.length === 2) {
                         initialPinchDist = Math.hypot(
@@ -638,7 +660,7 @@
                 ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
                 
                 const link = document.createElement('a');
-                link.download = `CTP box-photobox-${Date.now()}.png`;
+                link.download = `CTP Box-photobox-${Date.now()}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             };
