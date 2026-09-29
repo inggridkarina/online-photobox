@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CutiePieBox Photobox</title>
+    <!-- PeerJS untuk koneksi P2P gratis -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Syne:wght@600;800&display=swap" rel="stylesheet">
     
@@ -96,7 +97,7 @@
             overflow: hidden; 
         }
 
-        /* Sedikit diperbesar ukurannya (+4px) agar menutupi celah putih di balik PNG */
+        /* Teknik Bleed (+4px) untuk menutup celah putih secara presisi */
         #slot-0 { left: calc(4.416% - 2px); top: calc(3.555% - 2px); width: calc(44.166% + 4px); height: calc(18.444% + 4px); }
         #slot-1 { left: calc(51.333% - 2px); top: calc(3.555% - 2px); width: calc(44.166% + 4px); height: calc(18.444% + 4px); }
         #slot-2 { left: calc(4.416% - 2px); top: calc(23.333% - 2px); width: calc(44.166% + 4px); height: calc(18.444% + 4px); }
@@ -137,7 +138,7 @@
             position: absolute;
             overflow: hidden;
             cursor: grab;
-            border: none; /* Tanpa garis hijau putus-putus */
+            border: none;
             touch-action: none;
         }
         .edit-box:active { cursor: grabbing; }
@@ -256,11 +257,11 @@
         ];
 
         let peer;
+        let localStream;
         let dataConnections = [];
         let activeStreams = []; 
         let frozenSnapshots = []; 
         let takesRemaining = 10;
-        let localStreamObj = null;
 
         let boxTransforms = pixelBoxes.map(() => ({ scale: 1, x: 0, y: 0, filter: 'none' }));
         let activeBoxIndex = 0;
@@ -276,66 +277,45 @@
         async function setupConnection(isHost) {
             goToView('view-booth');
             try {
-                localStreamObj = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const localVid = document.createElement('video');
-                localVid.srcObject = localStreamObj;
+                localVid.srcObject = localStream;
                 localVid.autoplay = true; localVid.playsInline = true; localVid.muted = true;
                 
-                activeStreams.push({ id: 'local', videoEl: localVid, isLocal: true, stream: localStreamObj });
+                activeStreams.push({ id: 'local', videoEl: localVid, isLocal: true });
                 updateLivePreview();
                 
                 peer = new Peer(); 
+                
                 peer.on('open', id => {
                     document.getElementById('my-code').innerText = id;
                     if (!isHost) {
                         const hostCode = document.getElementById('join-code').value;
-                        if(hostCode) joinRoom(hostCode, localStreamObj);
+                        if(hostCode) joinRoom(hostCode);
                     }
                 });
 
+                // Menerima panggilan video & audio dari teman
                 peer.on('call', call => {
-                    call.answer(localStreamObj);
+                    call.answer(localStream);
                     handleIncomingStream(call);
                 });
 
+                // Menerima koneksi data sinkronisasi (Timer, Retake, Finish)
                 peer.on('connection', conn => {
                     dataConnections.push(conn);
                     conn.on('data', handleDataSync);
                 });
 
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'hidden') {
-                        stopAllTracks();
-                    } else if (document.visibilityState === 'visible' && localStreamObj) {
-                        localStreamObj.getTracks().forEach(track => {
-                            if (track.readyState === 'ended') {
-                                navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(newStream => {
-                                    localStreamObj = newStream;
-                                    localVid.srcObject = newStream;
-                                });
-                            } else {
-                                track.enabled = true;
-                            }
-                        });
-                    }
-                });
-
-                window.addEventListener('pagehide', () => {
-                    stopAllTracks();
-                });
-
             } catch (err) { alert("Camera and mic access is required!"); }
         }
 
-        function stopAllTracks() {
-            if (localStreamObj) {
-                localStreamObj.getTracks().forEach(track => track.stop());
-            }
-        }
-
-        function joinRoom(hostCode, localStream) {
+        function joinRoom(hostCode) {
+            // Mengirim video & audio ke host
             const call = peer.call(hostCode, localStream);
             handleIncomingStream(call);
+            
+            // Membuka jalur data sinkronisasi ke host
             const conn = peer.connect(hostCode);
             conn.on('open', () => {
                 dataConnections.push(conn);
@@ -348,8 +328,8 @@
                 if(!activeStreams.find(s => s.id === remoteStream.id)) {
                     const remoteVid = document.createElement('video');
                     remoteVid.srcObject = remoteStream;
-                    remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; 
-                    activeStreams.push({ id: remoteStream.id, videoEl: remoteVid, isLocal: false, stream: remoteStream });
+                    remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; // Suara teman aktif
+                    activeStreams.push({ id: remoteStream.id, videoEl: remoteVid, isLocal: false });
                     updateLivePreview();
                 }
             });
@@ -368,8 +348,6 @@
             let currentRow = Math.floor(frozenSnapshots.length / 2);
             document.getElementById('row-progress').innerText = Math.min(currentRow + 1, 4);
             document.getElementById('takes-left').innerText = takesRemaining;
-            
-            // Tombol retake dapat ditekan kapan saja selama ada foto tersimpan dan takes belum habis (termasuk baris terakhir)
             document.getElementById('retake-btn').disabled = (frozenSnapshots.length === 0 || takesRemaining <= 0);
             
             let rowStart = currentRow * 2;
@@ -445,12 +423,11 @@
             let currentRow = Math.floor(frozenSnapshots.length / 2);
             let rowStart = currentRow * 2;
 
-            activeStreams.forEach((streamData, index) => {
-                let targetSlot = rowStart + index;
+            activeStreams.forEach((streamData) => {
+                let targetSlot = rowStart + activeStreams.indexOf(streamData);
                 if(targetSlot >= 8) return; 
 
                 const tempCanvas = document.createElement('canvas');
-                // Sedikit dilebihkan resolusinya (534x336) untuk bleed overlap anti white-line
                 tempCanvas.width = 534; tempCanvas.height = 336;
                 const tCtx = tempCanvas.getContext('2d');
                 
