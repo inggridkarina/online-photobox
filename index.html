@@ -44,16 +44,16 @@
             background-color: var(--matcha-green);
             color: var(--text-dark);
             border: 3px solid var(--text-dark);
-            padding: 15px 30px;
+            padding: 12px 24px;
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 700;
-            font-size: 1.2rem;
+            font-size: 1rem;
             text-transform: uppercase;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 4px 4px 0px var(--text-dark);
             border-radius: 0;
-            margin: 10px 5px;
+            margin: 5px;
         }
 
         button:hover:not(:disabled) {
@@ -79,7 +79,6 @@
             border: 3px solid var(--text-dark); background: var(--pure-white); padding: 15px; text-align: center;
         }
 
-        /* LIVE VIEWFINDER */
         #live-booth-container {
             width: 100%;
             max-width: 500px;
@@ -99,7 +98,6 @@
             overflow: hidden; 
         }
 
-        /* 8 Boxes Coordinates */
         #slot-0 { left: calc(4.416% - 2px); top: calc(3.555% - 2px); }
         #slot-1 { left: calc(51.333% - 2px); top: calc(3.555% - 2px); }
         #slot-2 { left: calc(4.416% - 2px); top: calc(23.333% - 2px); }
@@ -113,16 +111,11 @@
             width: 100%; height: 100%;
             object-fit: cover;
         }
-        .box-slot video {
-            transform: scaleX(-1); 
-        }
+        .box-slot video { transform: scaleX(-1); }
 
         #live-frame-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10;
-            pointer-events: none;
-            object-fit: cover;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none; object-fit: cover;
         }
 
         .timer-display {
@@ -131,10 +124,40 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;
         }
 
-        #photo-canvas {
-            width: 100%; max-width: 500px; border: 5px solid var(--text-dark); display: block; margin: 20px auto;
+        /* EDIT PREVIEW CONTAINER (Interactive Box Customization) */
+        #edit-container {
+            width: 100%; max-width: 450px;
+            aspect-ratio: 2 / 3;
+            margin: 0 auto;
+            position: relative;
+            border: 5px solid var(--text-dark);
+            background: #fff;
+            overflow: hidden;
         }
-        
+
+        .edit-box {
+            position: absolute;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px dashed transparent;
+        }
+        .edit-box.active {
+            border-color: var(--matcha-green);
+            z-index: 5;
+        }
+        .edit-box img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transform-origin: center center;
+            touch-action: none;
+        }
+
+        #edit-frame-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none; object-fit: cover;
+        }
+
+        /* FILTERS */
         .filter-portra { filter: sepia(15%) contrast(95%) saturate(120%) brightness(105%) hue-rotate(-2deg); }
         .filter-colorplus { filter: sepia(25%) contrast(110%) saturate(130%) brightness(100%) hue-rotate(-5deg); }
         .filter-olympus { filter: contrast(115%) saturate(110%) brightness(105%) hue-rotate(2deg); }
@@ -146,7 +169,7 @@
 
     <div id="view-home" class="view active">
         <h1 class="header-title">Online<br>Photobox.</h1>
-        <p>Silly, goofy, free. Just you, your friends, and bad poses.</p>
+        <p>Silly, Goofy, Free. Just you, your friends, and bad poses.</p>
         <button onclick="goToView('view-frames')">Click to Start</button>
     </div>
 
@@ -171,7 +194,6 @@
         </div>
         
         <div id="live-booth-container">
-            <!-- 8 Absolute Slots -->
             <div class="box-slot" id="slot-0"></div>
             <div class="box-slot" id="slot-1"></div>
             <div class="box-slot" id="slot-2"></div>
@@ -196,46 +218,61 @@
     </div>
 
     <div id="view-edit" class="view">
-        <h2>Edit & Save</h2>
-        <canvas id="photo-canvas"></canvas>
+        <h2>Edit Pictures</h2>
+        <p style="font-size: 0.9rem; margin-top: 0;">Tap a box to select it, then pinch or use buttons to zoom/pan!</p>
+        
+        <div id="edit-container">
+            <!-- Interactive HTML Box Elements for Zoom/Pan -->
+            <div class="edit-box active" id="edit-box-0" onclick="selectEditBox(0)"><img id="img-box-0" src=""></div>
+            <div class="edit-box" id="edit-box-1" onclick="selectEditBox(1)"><img id="img-box-1" src=""></div>
+            <div class="edit-box" id="edit-box-2" onclick="selectEditBox(2)"><img id="img-box-2" src=""></div>
+            <div class="edit-box" id="edit-box-3" onclick="selectEditBox(3)"><img id="img-box-3" src=""></div>
+            <div class="edit-box" id="edit-box-4" onclick="selectEditBox(4)"><img id="img-box-4" src=""></div>
+            <div class="edit-box" id="edit-box-5" onclick="selectEditBox(5)"><img id="img-box-5" src=""></div>
+            <div class="edit-box" id="edit-box-6" onclick="selectEditBox(6)"><img id="img-box-6" src=""></div>
+            <div class="edit-box" id="edit-box-7" onclick="selectEditBox(7)"><img id="img-box-7" src=""></div>
+            <img id="edit-frame-overlay" src="images/frame1.png" alt="frame">
+        </div>
         
         <div class="control-panel">
-            <h3>Adjust Zoom</h3>
-            <button onclick="adjustZoom(0.1)">Zoom In +</button>
-            <button onclick="adjustZoom(-0.1)">Zoom Out -</button>
+            <p><strong>Selected: Box <span id="active-box-label">1</span></strong></p>
+            <button onclick="adjustSelectedZoom(0.1)">Zoom In +</button>
+            <button onclick="adjustSelectedZoom(-0.1)">Zoom Out -</button>
 
-            <h3>Film Filters</h3>
-            <button onclick="applyFilter('none')">Normal</button>
-            <button onclick="applyFilter('filter-portra')">Portra 400</button>
-            <button onclick="applyFilter('filter-colorplus')">Kodak Colorplus</button>
-            <button onclick="applyFilter('filter-olympus')">Olympus</button>
+            <h3>Box Filter Only</h3>
+            <button onclick="applyBoxFilter('none')">Normal</button>
+            <button onclick="applyBoxFilter('filter-portra')">Portra 400</button>
+            <button onclick="applyBoxFilter('filter-colorplus')">Kodak Colorplus</button>
+            <button onclick="applyBoxFilter('filter-olympus')">Olympus</button>
             
             <hr style="border-color: var(--text-dark); margin: 20px 0;">
-            <button onclick="savePhoto()">Save Photo (PNG)</button>
+            <button onclick="saveFinalCompositePhoto()" style="width: 100%; background: var(--matcha-green);">Save High-Res Photo (PNG)</button>
         </div>
     </div>
 
     <script>
-        // Data and State (8 boxes)
         const pixelBoxes = [
-            { x: 53, y: 64 }, { x: 616, y: 64 },
-            { x: 53, y: 420 }, { x: 616, y: 420 },
-            { x: 53, y: 776 }, { x: 616, y: 776 },
-            { x: 53, y: 1132 }, { x: 616, y: 1132 }
+            { x: 53, y: 64, w: 530, h: 332 }, 
+            { x: 616, y: 64, w: 530, h: 332 },
+            { x: 53, y: 420, w: 530, h: 332 }, 
+            { x: 616, y: 420, w: 530, h: 332 },
+            { x: 53, y: 776, w: 530, h: 332 }, 
+            { x: 616, y: 776, w: 530, h: 332 },
+            { x: 53, y: 1132, w: 530, h: 332 }, 
+            { x: 616, y: 1132, w: 530, h: 332 }
         ];
 
         let peer;
         let dataConnections = [];
         let activeStreams = []; 
         let frozenSnapshots = []; 
-        
-        // Limits and Modifiers
         let takesRemaining = 10;
-        let zoomLevel = 1;
-        let finalImageData = null;
-        let currentFilter = 'none';
 
-        const canvas = document.getElementById('photo-canvas');
+        // Per-box transformation states for zoom & pan
+        let boxTransforms = pixelBoxes.map(() => ({ scale: 1, x: 0, y: 0, filter: 'none' }));
+        let activeBoxIndex = 0;
+
+        const canvas = document.createElement('canvas'); // Hidden canvas for final generation
         const ctx = canvas.getContext('2d');
 
         function goToView(viewId) {
@@ -247,7 +284,6 @@
             goToView('view-booth');
             try {
                 const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                
                 const localVid = document.createElement('video');
                 localVid.srcObject = localStream;
                 localVid.autoplay = true; localVid.playsInline = true; localVid.muted = true;
@@ -273,7 +309,6 @@
                     dataConnections.push(conn);
                     conn.on('data', handleDataSync);
                 });
-
             } catch (err) { alert("Camera and mic access is required!"); }
         }
 
@@ -293,7 +328,6 @@
                     const remoteVid = document.createElement('video');
                     remoteVid.srcObject = remoteStream;
                     remoteVid.autoplay = true; remoteVid.playsInline = true; remoteVid.muted = false; 
-                    
                     activeStreams.push({ id: remoteStream.id, videoEl: remoteVid, isLocal: false });
                     updateLivePreview();
                 }
@@ -301,10 +335,7 @@
         }
 
         function updateLivePreview() {
-            for(let i=0; i<8; i++) {
-                document.getElementById(`slot-${i}`).innerHTML = '';
-            }
-
+            for(let i=0; i<8; i++) document.getElementById(`slot-${i}`).innerHTML = '';
             frozenSnapshots.forEach((dataUrl, i) => {
                 if (i < 8) {
                     const img = document.createElement('img');
@@ -315,8 +346,6 @@
 
             let nextAvailableSlot = frozenSnapshots.length;
             document.getElementById('box-progress').innerText = Math.min(nextAvailableSlot + 1, 8);
-            
-            // Manage button states
             document.getElementById('takes-left').innerText = takesRemaining;
             document.getElementById('retake-btn').disabled = (frozenSnapshots.length === 0);
             
@@ -348,23 +377,22 @@
                 return;
             }
             dataConnections.forEach(conn => conn.send({ command: 'FINISH_SESSION' }));
-            compileFullFrame();
+            prepareEditScreen();
         }
 
         function handleDataSync(data) {
             if (data.command === 'START_TIMER') startCountdown();
             else if (data.command === 'RETAKE_BOX') executeRetake();
-            else if (data.command === 'FINISH_SESSION') compileFullFrame();
+            else if (data.command === 'FINISH_SESSION') prepareEditScreen();
         }
 
         function executeRetake() {
-            frozenSnapshots.pop(); // Remove the last taken box
+            frozenSnapshots.pop();
             updateLivePreview();
         }
 
         function startCountdown() {
             if(takesRemaining <= 0) return;
-            
             document.getElementById('snap-btn').disabled = true;
             document.getElementById('retake-btn').disabled = true;
             document.getElementById('finish-btn').disabled = true;
@@ -385,8 +413,7 @@
         }
 
         function captureSnapshot() {
-            takesRemaining--; // Deduct 1 take
-            
+            takesRemaining--;
             activeStreams.forEach((streamData) => {
                 if(frozenSnapshots.length >= 8) return; 
 
@@ -410,12 +437,11 @@
                 tCtx.translate(534, 0);
                 tCtx.scale(-1, 1);
                 tCtx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, 534, 336);
-                
                 frozenSnapshots.push(tempCanvas.toDataURL('image/png'));
             });
 
             if (frozenSnapshots.length >= 8 || takesRemaining <= 0) {
-                compileFullFrame(); 
+                prepareEditScreen(); 
             } else {
                 updateLivePreview();
                 document.getElementById('snap-btn').disabled = false;
@@ -424,16 +450,131 @@
             }
         }
 
-        async function compileFullFrame() {
-            canvas.width = 1200; canvas.height = 1800;
-            ctx.fillStyle = '#111111'; 
+        // --- INTERACTIVE PER-BOX EDITING SETUP ---
+        function prepareEditScreen() {
+            pixelBoxes.forEach((b, i) => {
+                const boxEl = document.getElementById(`edit-box-${i}`);
+                const imgEl = document.getElementById(`img-box-${i}`);
+                
+                // Position matching the 1200x1800 scale relative to UI preview container
+                boxEl.style.left = (b.x / 1200 * 100) + '%';
+                boxEl.style.top = (b.y / 1800 * 100) + '%';
+                boxEl.style.width = (b.w / 1200 * 100) + '%';
+                boxEl.style.height = (b.h / 1800 * 100) + '%';
+
+                if (frozenSnapshots[i]) {
+                    imgEl.src = frozenSnapshots[i];
+                    boxEl.style.display = 'block';
+                } else {
+                    boxEl.style.display = 'none'; // Hide empty uncaptured boxes
+                }
+            });
+
+            selectEditBox(0);
+            goToView('view-edit');
+            setupTouchAndMousePanZoom();
+        }
+
+        function selectEditBox(index) {
+            if (!frozenSnapshots[index]) return;
+            activeBoxIndex = index;
+            document.querySelectorAll('.edit-box').forEach(el => el.classList.remove('active'));
+            document.getElementById(`edit-box-${index}`).classList.add('active');
+            document.getElementById('active-box-label').innerText = index + 1;
+        }
+
+        function adjustSelectedZoom(amount) {
+            let t = boxTransforms[activeBoxIndex];
+            t.scale += amount;
+            if (t.scale < 1) t.scale = 1;
+            if (t.scale > 3) t.scale = 3;
+            updateBoxTransform(activeBoxIndex);
+        }
+
+        function applyBoxFilter(filterClass) {
+            let t = boxTransforms[activeBoxIndex];
+            t.filter = filterClass;
+            const imgEl = document.getElementById(`img-box-${activeBoxIndex}`);
+            imgEl.className = '';
+            if (filterClass !== 'none') imgEl.classList.add(filterClass);
+        }
+
+        function updateBoxTransform(index) {
+            let t = boxTransforms[index];
+            const imgEl = document.getElementById(`img-box-${index}`);
+            imgEl.style.transform = `scale(${t.scale}) translate(${t.x}px, ${t.y}px)`;
+        }
+
+        // Mouse & Touch Drag / Pinch Pan-Zoom support
+        function setupTouchAndMousePanZoom() {
+            pixelBoxes.forEach((_, i) => {
+                const boxEl = document.getElementById(`edit-box-${i}`);
+                let isDragging = false;
+                let startX, startY;
+
+                boxEl.onpointerdown = (e) => {
+                    selectEditBox(i);
+                    isDragging = true;
+                    startX = e.clientX - boxTransforms[i].x;
+                    startY = e.clientY - boxTransforms[i].y;
+                    boxEl.setPointerCapture(e.pointerId);
+                };
+
+                boxEl.onpointermove = (e) => {
+                    if (!isDragging) return;
+                    boxTransforms[i].x = e.clientX - startX;
+                    boxTransforms[i].y = e.clientY - startY;
+                    updateBoxTransform(i);
+                };
+
+                boxEl.onpointerup = (e) => {
+                    isDragging = false;
+                    boxEl.releasePointerCapture(e.pointerId);
+                };
+            });
+        }
+
+        // --- FINAL COMPOSITE HIGH-RES SAVE ---
+        async function saveFinalCompositePhoto() {
+            canvas.width = 1200; 
+            canvas.height = 1800;
+            ctx.fillStyle = '#111111';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
+            // Draw each box taking into account custom user zoom, pan, and box-only filters
             const drawPromises = frozenSnapshots.map((src, i) => {
                 return new Promise(resolve => {
                     const img = new Image();
                     img.onload = () => {
-                        ctx.drawImage(img, pixelBoxes[i].x - 2, pixelBoxes[i].y - 2, 534, 336);
+                        ctx.save();
+                        const b = pixelBoxes[i];
+                        
+                        // Clip context to exact box dimensions so panning doesn't spill over frame borders
+                        ctx.beginPath();
+                        ctx.rect(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
+                        ctx.clip();
+
+                        // Apply box-only filter directly to canvas drawing operation
+                        let t = boxTransforms[i];
+                        let filterStr = 'none';
+                        if (t.filter === 'filter-portra') filterStr = 'sepia(15%) contrast(95%) saturate(120%) brightness(105%) hue-rotate(-2deg)';
+                        if (t.filter === 'filter-colorplus') filterStr = 'sepia(25%) contrast(110%) saturate(130%) brightness(100%) hue-rotate(-5deg)';
+                        if (t.filter === 'filter-olympus') filterStr = 'contrast(115%) saturate(110%) brightness(105%) hue-rotate(2deg)';
+                        ctx.filter = filterStr;
+
+                        // Calculate scale/pan scaling relative to 1200x1800 master resolution
+                        const scaleFactor = 1200 / document.getElementById('edit-container').offsetWidth;
+                        const drawX = b.x + (t.x * scaleFactor);
+                        const drawY = b.y + (t.y * scaleFactor);
+                        const drawW = b.w * t.scale;
+                        const drawH = b.h * t.scale;
+                        
+                        // Center offset adjustments for zoom scaling
+                        const offsetX = (drawW - b.w) / 2;
+                        const offsetY = (drawH - b.h) / 2;
+
+                        ctx.drawImage(img, drawX - offsetX, drawY - offsetY, drawW, drawH);
+                        ctx.restore();
                         resolve();
                     };
                     img.src = src;
@@ -442,66 +583,18 @@
 
             await Promise.all(drawPromises);
 
+            // Draw clean Frame PNG on top (unaffected by filters or zoom)
             const frameImg = new Image();
             frameImg.onload = () => {
+                ctx.filter = 'none'; // Ensure frame is pristine
                 ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
                 
-                // Save RAW image data for zooming
-                finalImageData = canvas.toDataURL('image/png');
-                drawToCanvasWithModifiers();
-                
-                // Go Straight to Edit & Save
-                goToView('view-edit');
+                const link = document.createElement('a');
+                link.download = `CTP-photobox-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
             };
             frameImg.src = 'images/frame1.png';
-        }
-
-        // --- ZOOM & FILTER LOGIC ---
-        function drawToCanvasWithModifiers() {
-            if(!finalImageData) return;
-            const img = new Image();
-            img.onload = () => {
-                ctx.clearRect(0,0, canvas.width, canvas.height);
-                
-                // Mathematical center zooming
-                const sw = canvas.width / zoomLevel;
-                const sh = canvas.height / zoomLevel;
-                const sx = (canvas.width - sw) / 2;
-                const sy = (canvas.height - sh) / 2;
-                
-                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-            };
-            img.src = finalImageData;
-        }
-
-        function adjustZoom(amount) {
-            zoomLevel += amount;
-            if(zoomLevel < 1) zoomLevel = 1; 
-            if(zoomLevel > 3) zoomLevel = 3;
-            drawToCanvasWithModifiers();
-        }
-
-        function applyFilter(filterClass) {
-            canvas.className = '';
-            if (filterClass !== 'none') canvas.classList.add(filterClass);
-            currentFilter = filterClass;
-        }
-
-        function savePhoto() {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
-            const tCtx = tempCanvas.getContext('2d');
-            
-            if(currentFilter === 'filter-portra') tCtx.filter = 'sepia(15%) contrast(95%) saturate(120%) brightness(105%) hue-rotate(-2deg)';
-            if(currentFilter === 'filter-colorplus') tCtx.filter = 'sepia(25%) contrast(110%) saturate(130%) brightness(100%) hue-rotate(-5deg)';
-            if(currentFilter === 'filter-olympus') tCtx.filter = 'contrast(115%) saturate(110%) brightness(105%) hue-rotate(2deg)';
-            
-            tCtx.drawImage(canvas, 0, 0);
-
-            const link = document.createElement('a');
-            link.download = `matcha-photobox-${Date.now()}.png`;
-            link.href = tempCanvas.toDataURL('image/png');
-            link.click();
         }
     </script>
 </body>
