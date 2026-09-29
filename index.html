@@ -136,14 +136,10 @@
             position: absolute;
             overflow: hidden;
             cursor: grab;
-            border: 2px dashed transparent;
+            border: none; /* Tanpa garis hijau putus-putus */
             touch-action: none;
         }
         .edit-box:active { cursor: grabbing; }
-        .edit-box.active {
-            border-color: var(--matcha-green);
-            z-index: 5;
-        }
         .edit-box img {
             width: 100%; height: 100%;
             object-fit: cover;
@@ -165,8 +161,8 @@
 <body>
 
     <div id="view-home" class="view active">
-        <h1 class="header-title">Online<br>Photobox.</h1>
-        <p>Silly, Goofy, Free. Just you, your friends, and bad poses.</p>
+        <h1 class="header-title">CutiePieBox<br>Photobox.</h1>
+        <p>No algorithms. No soft shadows. Just you, your friends, and bad poses.</p>
         <button onclick="goToView('view-frames')">Click to Start</button>
     </div>
 
@@ -216,10 +212,10 @@
 
     <div id="view-edit" class="view">
         <h2>Edit Pictures</h2>
-        <p style="font-size: 0.9rem; margin-top: 0;">Pinch-to-zoom on mobile, or drag/zoom images inside boxes seamlessly!</p>
+        <p style="font-size: 0.9rem; margin-top: 0;">Pinch-to-zoom atau geser foto di dalam box secara bebas!</p>
         
         <div id="edit-container">
-            <div class="edit-box active" id="edit-box-0" onclick="selectEditBox(0)"><img id="img-box-0" src=""></div>
+            <div class="edit-box" id="edit-box-0" onclick="selectEditBox(0)"><img id="img-box-0" src=""></div>
             <div class="edit-box" id="edit-box-1" onclick="selectEditBox(1)"><img id="img-box-1" src=""></div>
             <div class="edit-box" id="edit-box-2" onclick="selectEditBox(2)"><img id="img-box-2" src=""></div>
             <div class="edit-box" id="edit-box-3" onclick="selectEditBox(3)"><img id="img-box-3" src=""></div>
@@ -231,7 +227,7 @@
         </div>
         
         <div class="control-panel">
-            <p><strong>Selected: Box <span id="active-box-label">1</span></strong></p>
+            <p style="margin: 5px 0;"><strong>Zoom & Pan:</strong> Sentuh/klik gambar di box mana saja untuk mengaturnya.</p>
             <button onclick="adjustSelectedZoom(0.1)">Zoom In +</button>
             <button onclick="adjustSelectedZoom(-0.1)">Zoom Out -</button>
 
@@ -263,7 +259,7 @@
         let activeStreams = []; 
         let frozenSnapshots = []; 
         let takesRemaining = 10;
-        let localStreamObj = null; // Menyimpan objek stream lokal untuk kontrol hardware
+        let localStreamObj = null;
 
         let boxTransforms = pixelBoxes.map(() => ({ scale: 1, x: 0, y: 0, filter: 'none' }));
         let activeBoxIndex = 0;
@@ -306,12 +302,10 @@
                     conn.on('data', handleDataSync);
                 });
 
-                // --- FITUR AUTO-KILL KAMERA/MIC SAAT APLIKASI DITUTUP / MINIMIZE (MOBILE FRIENDLY) ---
                 document.addEventListener('visibilitychange', () => {
                     if (document.visibilityState === 'hidden') {
                         stopAllTracks();
                     } else if (document.visibilityState === 'visible' && localStreamObj) {
-                        // Nyalakan kembali track jika kembali ke tab/aplikasi
                         localStreamObj.getTracks().forEach(track => {
                             if (track.readyState === 'ended') {
                                 navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(newStream => {
@@ -373,7 +367,9 @@
             let currentRow = Math.floor(frozenSnapshots.length / 2);
             document.getElementById('row-progress').innerText = Math.min(currentRow + 1, 4);
             document.getElementById('takes-left').innerText = takesRemaining;
-            document.getElementById('retake-btn').disabled = (frozenSnapshots.length === 0);
+            
+            // Tombol retake aktif selama belum habis takes (max 10 kali) dan ada foto yang tersimpan
+            document.getElementById('retake-btn').disabled = (frozenSnapshots.length === 0 || takesRemaining <= 0);
             
             let rowStart = currentRow * 2;
             activeStreams.forEach((streamData, index) => {
@@ -381,7 +377,6 @@
                 if (targetSlot < 8) {
                     const slotEl = document.getElementById(`slot-${targetSlot}`);
                     slotEl.appendChild(streamData.videoEl);
-                    // Memastikan pemutaran video dipaksa berjalan untuk mencegah freeze di perangkat iOS/iPhone
                     streamData.videoEl.play().catch(e => console.log("Auto-play prevented:", e));
                 }
             });
@@ -394,7 +389,7 @@
         }
 
         function triggerSyncRetake() {
-            if(frozenSnapshots.length === 0) return;
+            if(frozenSnapshots.length === 0 || takesRemaining <= 0) return;
             dataConnections.forEach(conn => conn.send({ command: 'RETAKE_ROW' }));
             executeRetakeRow();
         }
@@ -484,7 +479,7 @@
             } else {
                 updateLivePreview();
                 document.getElementById('snap-btn').disabled = false;
-                document.getElementById('retake-btn').disabled = false;
+                document.getElementById('retake-btn').disabled = (takesRemaining <= 0);
                 document.getElementById('finish-btn').disabled = false;
             }
         }
@@ -515,9 +510,6 @@
         function selectEditBox(index) {
             if (!frozenSnapshots[index]) return;
             activeBoxIndex = index;
-            document.querySelectorAll('.edit-box').forEach(el => el.classList.remove('active'));
-            document.getElementById(`edit-box-${index}`).classList.add('active');
-            document.getElementById('active-box-label').innerText = index + 1;
         }
 
         function adjustSelectedZoom(amount) {
@@ -585,6 +577,7 @@
                 };
 
                 boxEl.ontouchstart = (e) => {
+                    selectEditBox(i);
                     if (e.touches.length === 2) {
                         initialPinchDist = Math.hypot(
                             e.touches[0].clientX - e.touches[1].clientX,
@@ -660,7 +653,7 @@
                 ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
                 
                 const link = document.createElement('a');
-                link.download = `CTP Box-photobox-${Date.now()}.png`;
+                link.download = `cutiepiebox-${Date.now()}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             };
