@@ -84,7 +84,7 @@
             border: 3px solid var(--text-dark); background: var(--pure-white); padding: 15px; text-align: center;
         }
 
-        /* LIVE VIEWFINDER - Adjusted for 530x332 ratios */
+        /* LIVE VIEWFINDER */
         #live-booth-container {
             width: 100%;
             max-width: 500px;
@@ -101,7 +101,6 @@
             grid-template-columns: 1fr 1fr; 
             grid-template-rows: 1fr 1fr 1fr; 
             width: 100%; height: 100%;
-            /* Padding squeezes the live videos inward so they sit behind your thick frame borders */
             padding: 15% 8%; 
             box-sizing: border-box;
             gap: 5px;
@@ -110,7 +109,7 @@
         #video-grid video {
             width: 100%; height: 100%;
             object-fit: cover; 
-            aspect-ratio: 530 / 332; /* Forces the specific shape */
+            aspect-ratio: 530 / 332; 
             transform: scaleX(-1);
             background: #222;
         }
@@ -224,16 +223,16 @@
     </div>
 
     <script>
-        // --- YOUR CUSTOM FRAME SETTINGS ---
-        // Change these coordinates if the videos are not perfectly aligned behind your PNG holes.
-        // x = Left to Right spacing | y = Top to Bottom spacing
+        // --- PRECISE FRAME COORDINATES ---
+        // Based on your exact measurements:
+        // Width check: 53(pad) + 530(box) + 33(gap) + 530(box) + 53(pad) = 1199px (~1200px)
         const boxPositions = [
-            { x: 40, y: 150 },   // Box 1 (Top Left)
-            { x: 630, y: 150 },  // Box 2 (Top Right)
-            { x: 40, y: 650 },   // Box 3 (Mid Left)
-            { x: 630, y: 650 },  // Box 4 (Mid Right)
-            { x: 40, y: 1150 },  // Box 5 (Bottom Left)
-            { x: 630, y: 1150 }  // Box 6 (Bottom Right)
+            { x: 53, y: 64 },    // Box 1 (Top Left)
+            { x: 616, y: 64 },   // Box 2 (Top Right)
+            { x: 53, y: 420 },   // Box 3 (Mid Left: 64 + 332 box height + 24 gap)
+            { x: 616, y: 420 },  // Box 4 (Mid Right)
+            { x: 53, y: 776 },   // Box 5 (Bottom Left: 420 + 332 box height + 24 gap)
+            { x: 616, y: 776 }   // Box 6 (Bottom Right)
         ];
 
         let peer;
@@ -369,7 +368,7 @@
                 if(index < 6 && boxPositions[index]) {
                     ctx.save();
                     
-                    // Fixed exact dimensions provided
+                    // Locked to your exact box sizes
                     const dw = 530; 
                     const dh = 332; 
                     const dx = boxPositions[index].x;
@@ -379,7 +378,6 @@
                     const cRatio = dw / dh;
                     let sx = 0, sy = 0, sWidth = vid.videoWidth, sHeight = vid.videoHeight;
 
-                    // Perfect proportional crop logic
                     if (vRatio > cRatio) {
                         sWidth = sHeight * cRatio;
                         sx = (vid.videoWidth - sWidth) / 2;
@@ -388,7 +386,7 @@
                         sy = (vid.videoHeight - sHeight) / 2;
                     }
 
-                    // Mirror & Draw
+                    // Mirror & Draw perfectly into your exact coordinates
                     ctx.translate(dx + dw, dy);
                     ctx.scale(-1, 1);
                     ctx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, dw, dh);
